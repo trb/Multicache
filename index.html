@@ -1,1 +1,159 @@
-Multicache
+<!doctype html public "✰">
+<html lang="en-us" class="no-js">
+    <head>
+        <meta charset="utf-8">
+        <title>Decorator based cache system for python | Multicache</title>
+        <link rel="stylesheet" type="text/css" href="reset.css" />
+        <link href='http://fonts.googleapis.com/css?family=Quantico:400,700|Open+Sans:400' rel='stylesheet' type='text/css'>
+        <style type="text/css">
+            body {
+                width: 600px;
+                padding: 0 20px;
+                font-size: 16px;
+                margin: auto;
+                font-family: 'Open Sans', sans-serif;
+                font-weight: 400;
+            }
+            header {
+                display: block;
+                text-align: left;
+                height: 200px;
+                padding-left: 20px;
+                padding-top: 30px;
+                color: #fff;
+                background-color: #464a70;
+                border-bottom: 60px solid #a9b0f3;
+            }
+            h1, h2 {
+                font-family: 'Quantico', sans-serif;
+            }
+            h1 {
+                font-weight: 700;
+                text-shadow: #222 2px 2px 0;
+            }
+            h1 a, h1 a:visited {
+                display: block;
+                color: #fff;
+                text-decoration: none;
+            }
+            h1 a:active {
+                margin-top: 1px;
+                margin-bottom: -1px;
+                text-shadow: #333 1px 1px 0;
+            }
+            h1 a:hover {
+                color: #e9e9e9;
+            }
+            h2 {
+                font-weight: 400;
+            }
+            header h1 {
+                font-size: 100px;
+            }
+            header h2 {
+                font-size: 26px;
+            }
+            
+            article {
+                background-color: #fce4a4;
+                color: #555;
+                padding: 20px;
+            }
+            article h2 {
+                font-size: 26px;
+                font-weight: 700;
+                margin-bottom: 20px;
+            }
+            article p {
+                margin-bottom: 20px;
+                line-height: 1.5em;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1><a href="https://github.com/trb/Multicache">Multicache</a></h1>
+            <h2>Decorator based cache system for python</h2>
+        </header>
+        <article>
+            <h2>What it does</h2>
+            <p>
+                Multicache makes it easy to cache attributes of a class and
+                keep them up-to-date. It uses a transparent, write-through,
+                lazy-loading cache strategy. 
+            </p>
+            <p>
+                There are two decorators: One to mark a class as cachable, and
+                the other identifies a method within a class that returns
+                the data to cache.
+            </p>
+            
+            <h2>How it works</h2>
+            <p>
+                <script src="https://gist.github.com/2723220.js?file=gistfile1.py"></script> 
+            </p>
+            <p>
+                @cache_class marks a class as cachable, and the id_attribute
+                parameter tells multicache to store the data for instances of
+                the cache under that id.
+            </p>
+            <p>
+                @cache_provider declares a function that provides the data
+                for the instance. In a real application, this function would
+                send a complex sql query, or do some intense computations, etc.
+                The only requirement is that it returns something that can
+                be serialized with json.
+            </p>
+            <p>
+                <script src="https://gist.github.com/2723251.js?file=working"></script>
+            </p>
+            <p>
+                With multicache, instantiation is free (as long as you don't
+                put any calculations into __init__). When the five instances
+                of Article are created, they're automatically registered with
+                multicache.
+            </p>
+            <p>
+                When the first article name is displayed, data for all five
+                instances is batch-loaded from cache. Should data be missing
+                for an instance, it's get_data() method is called and the
+                return value stored for further access.
+            </p>
+            <p>
+                <script src="https://gist.github.com/2723277.js?file=store_changes.py"></script>
+            </p>
+            <p>
+                Here, the article class is expanded by a method that changes
+                the title. Since 'title' is a key of the dict returned by
+                get_data(), setting self.title (or article_1.title) will
+                update the cached value.
+            </p>
+            <p>
+                The changes are batch-written to the cache when do_updates() is
+                called. So if you update multiple instances (e.g. a
+                retrieved_at timestamp), there will only be one write send to
+                the cache.
+            </p>
+            
+            <h2>Why?</h2>
+            <p>
+                At my last job (<a href="http://ww.doolao.net">doolao.net</a>)
+                we had many different lists of users (friends, best matches,
+                last logins, etc.) that were different for each user.
+            </p>
+            <p>
+                At first we cached the user data for each list and invalidated
+                the list each time a user changed their data. This became
+                inefficient as activity grew, as the cache was often invalidated
+                and the recomputation took a while.
+            </p>
+            <p>
+                We developed a similar system to multicache for PHP, which
+                allowed us to cache the lists and the user data seperately. Now,
+                each time a user changed their profile picture, only the cache for
+                their data was updated, not affecting the friends list they
+                were listed in.
+            </p>
+        </article>
+    </body>
+</html>
