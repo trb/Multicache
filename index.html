@@ -254,13 +254,7 @@ class Article(object):
         return data
         
     def _secret_sauce(self, text):
-        cache_key = 'article_' + str(self.article_id)
-        if cache.has(cache_key):
-            return cache.get(cache_key)
-            
         time.sleep(5)
-        
-        cache.set(article_key, text)
         return text
         
     def set_data(self, data):
