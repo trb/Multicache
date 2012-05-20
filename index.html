@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <title>Decorator based cache system for python | Multicache</title>
         <link rel="stylesheet" type="text/css" href="reset.css" />
-        <link href='http://fonts.googleapis.com/css?family=Quantico:400,700|Open+Sans:400' rel='stylesheet' type='text/css'>
+        <link href='http://fonts.googleapis.com/css?family=Quantico:400,700|Open+Sans:400' rel='stylesheet' type='text/css' />
         <style type="text/css">
             body {
                 width: 600px;
@@ -22,7 +22,40 @@
                 padding-top: 30px;
                 color: #fff;
                 background-color: #464a70;
-                border-bottom: 60px solid #a9b0f3;
+            }
+            .anchor {
+                visibility: hidden;
+                display: block;
+                height: 0px;
+            }
+            #menu {
+                background-color: #a9b0f3;
+                padding: 20px;
+                height: 60px;
+                line-height: 60px;
+                font-size: 26px;
+            }
+            #menu a {
+                display: block;
+                float: left;
+                margin-left: 1em;
+                color: #fff;
+                text-shadow: #666 2px 2px 0;
+                text-decoration: none;
+            }
+            #menu a.first {
+                margin-left: 0;
+            }
+            #menu a:visited {
+                color: #ddd;
+            }
+            #menu a:active {
+                text-shadow: #888 1px 1px 0;
+                margin-top: 1px;
+                margin-bottom: -1px;
+            }
+            #menu a:hover {
+                text-decoration: underline;
             }
             h1, h2 {
                 font-family: 'Quantico', sans-serif;
@@ -53,7 +86,18 @@
             header h2 {
                 font-size: 26px;
             }
-            
+            blockquote {
+                display: block;
+                margin: 20px 0 20px 20px;
+                border-left: 5px solid #555;
+                padding-left: 20px;
+                font-style: italic;
+            }
+            code {
+                display: block;
+                margin-left: 0 20px 20px 20px;
+                white-space: pre;
+            }
             article {
                 background-color: #fce4a4;
                 color: #555;
@@ -75,85 +119,212 @@
             <h1><a href="https://github.com/trb/Multicache">Multicache</a></h1>
             <h2>Decorator based cache system for python</h2>
         </header>
+        <div id="menu">
+            <a href="#tutorial" class="first">#Tutorial</a>
+            <a href="#docs">#Docs</a>
+        </div>
         <article>
-            <h2>What it does</h2>
+            <a class="anchor" name="tutorial"></a>
+            <h2>So you want to go fast</h2>
+            <blockquote>
+                There are only two hard things in Computer Science: cache invalidation and naming things.
+                -- Phil Karlton
+            </blockquote>
             <p>
-                Multicache makes it easy to cache attributes of a class and
-                keep them up-to-date. It uses a transparent, write-through,
-                lazy-loading cache strategy. 
+                Multicache is my humble attempt at helping with cache
+                invalidation. This is a kind of walkthrough tutorial, if you
+                just want to see the
+                <a href="#docs">docs, you can find them further down</a>.
             </p>
             <p>
-                There are two decorators: One to mark a class as cachable, and
-                the other identifies a method within a class that returns
-                the data to cache.
+                Imagine if you will, a place where someone is called Storklar,
+                and they're working on a new blog engine. It's
+                awesome because Storklar's awesome, and what makes it awesome
+                is its special sauce text processing. Since I'm not that
+                awesome, I'll just write "time.sleep(5)". So their article class
+                might look like this:
             </p>
+            <code>
+class Article(object):
+    def __init__(self, article_id):
+        self.article_id = article_id
+        data = self._get_article_data
+        for key, value in data.iteritems():
+            setattr(self, key, value)
+        
+    def _get_article_data(self):
+        data = db.get(self.article_id)
+        data['processed'] = self._secret_sauce(
+                                           data['text'])
+        return data
+        
+    def _secret_sauce(self, text):
+        time.sleep(5)
+        return text
+
+#####
+
+article = Article(1)
+print article.processed
+            </code>
+            <p>
+                Great. Well, o.k., it takes five seconds to render the
+                article page, but who cares. People will wait five seconds
+                to read Storklars brilliant brose.
+            </p>
+            <p>
+                But! What about the front page, which has the three
+                newest articles, the five top commented on and the five most
+                bropular? That's <em>65 seconds</em> to render the front page. No one's
+                going to what <strong>that</strong> long. After intense
+                consideration, Storklar came up with this:
+            </p>
+            <code>
+class Article(object):
+    def __init__(self, article_id):
+        self.article_id = article_id
+        data = self._get_article_data
+        self._copy_to_attributes(data)
+        
+    def _copy_to_attributes(self, data):
+        for key, value in data.iteritems():
+            setattr(self, key, value)
+        
+    def _get_article_data(self):
+        data = db.get(self.article_id)
+        data['processed'] = self._secret_sauce(
+                                           data['text'])
+        return data
+        
+    def _secret_sauce(self, text):
+        cache_key = 'article_' + str(self.article_id)
+        if cache.has(cache_key):
+            return cache.get(cache_key)
             
-            <h2>How it works</h2>
+        time.sleep(5)
+        
+        cache.set(article_key, text)
+        return text
+        
+    def set_data(self, data):
+        db.store(self.article_id, data)
+        self._copy_to_attributes(data)
+        
+        cache_key = 'article_' + str(self.article_id)
+        cache.delete(cache_key)
+            </code>
             <p>
-                <script src="https://gist.github.com/2723220.js?file=gistfile1.py"></script> 
+                Finally, the front page loads in a blink of an eye,
+                and the article page is fast, too. But, oh no, Storklars
+                friend Bobo is constantly editing his article. And every time
+                he saves his changes, the front page takes five seconds to
+                load, since the cache is deleted on write.
             </p>
             <p>
-                @cache_class marks a class as cachable, and the id_attribute
-                parameter tells multicache to store the data for instances of
-                the cache under that id.
+                Also, the Galatic Intertimes featured Storklars blog, and the
+                cache is overloading since there's thirteen cache queries for
+                every front-page load.
+            </p>
+            <h2>Multicache to the rescue</h2>
+            <p>
+                Multicache is a transparent write-through cache with
+                batch-loading. Every time a multicache'd class is instantiated,
+                it's registered in the back end. When the first attribute on
+                any instance is accessed, the data for all registered instances
+                is batch-loaded (if the back end supports that), resulting in
+                only one cache query.
             </p>
             <p>
-                @cache_provider declares a function that provides the data
-                for the instance. In a real application, this function would
-                send a complex sql query, or do some intense computations, etc.
-                The only requirement is that it returns something that can
-                be serialized with json.
+                This way, Storklars front-page will be really fast, since
+                there's only one cache query for all lists (newest, most
+                commented on, etc.), and the cache isn't invalivated. This
+                is the result:
             </p>
-            <p>
-                <script src="https://gist.github.com/2723251.js?file=working"></script>
-            </p>
-            <p>
-                With multicache, instantiation is free (as long as you don't
-                put any calculations into __init__). When the five instances
-                of Article are created, they're automatically registered with
-                multicache.
-            </p>
-            <p>
-                When the first article name is displayed, data for all five
-                instances is batch-loaded from cache. Should data be missing
-                for an instance, it's get_data() method is called and the
-                return value stored for further access.
-            </p>
-            <p>
-                <script src="https://gist.github.com/2723277.js?file=store_changes.py"></script>
-            </p>
-            <p>
-                Here, the article class is expanded by a method that changes
-                the title. Since 'title' is a key of the dict returned by
-                get_data(), setting self.title (or article_1.title) will
-                update the cached value.
-            </p>
-            <p>
-                The changes are batch-written to the cache when do_updates() is
-                called. So if you update multiple instances (e.g. a
-                retrieved_at timestamp), there will only be one write send to
-                the cache.
-            </p>
+            <code>
+@cache_class(id_attribute='article_id')
+class Article(object):
+    def __init__(self, article_id):
+        self.article_id = article_id
+        
+    @cache_provider
+    def _get_article_data(self):
+        data = db.get(self.article_id)
+        data['processed'] = self._secret_sauce(
+                                           data['text'])
+        return data
+        
+    def _secret_sauce(self, text):
+        cache_key = 'article_' + str(self.article_id)
+        if cache.has(cache_key):
+            return cache.get(cache_key)
             
-            <h2>Why?</h2>
+        time.sleep(5)
+        
+        cache.set(article_key, text)
+        return text
+        
+    def set_data(self, data):
+        db.store(self.article_id, data)
+        
+        data['processed'] = self._secret_sauce(
+                                data['text'])
+        
+        for key, value in data.iteritems():
+            setattr(self, key, value)
+            
+#####
+
+newest_article_ids = [3, 2, 1]
+most_commented_ids = [5, 3, 1]
+
+newest_articles = map(lambda id_: Article(id_),
+                    newest_article_ids)
+most_commented = map(lambda id_: Article(id_),
+                    most_commented_ids)
+                    
+print newest_articles[0].title
+            </code>
             <p>
-                At my last job (<a href="http://ww.doolao.net">doolao.net</a>)
-                we had many different lists of users (friends, best matches,
-                last logins, etc.) that were different for each user.
+                Instantiation is free (as long as you don't do anything in
+                the constructor), and all the work is done with the print
+                statement.
             </p>
             <p>
-                At first we cached the user data for each list and invalidated
-                the list each time a user changed their data. This became
-                inefficient as activity grew, as the cache was often invalidated
-                and the recomputation took a while.
+                Updating an article looks like this:
+            </p>
+            <code>
+article = Article(1)
+
+# Direct access
+article.title = 'new_title'
+
+# With set_data
+article.set_data({'text': 'new text'})
+
+do_updates() # Trigger a cache write
+            </code>
+            <h2>The Dry and Boring</h2>
+            <p>
+                @cache_class(id_attribute='article_id') tells multicache to
+                watch for instances of this class, and use their article_id
+                attribute in the cache key as a name space.
             </p>
             <p>
-                We developed a similar system to multicache for PHP, which
-                allowed us to cache the lists and the user data seperately. Now,
-                each time a user changed their profile picture, only the cache for
-                their data was updated, not affecting the friends list they
-                were listed in.
+                @cache_provider registers a method to be called if there's a
+                cache miss for the instances data. It has to return a dict;
+                multicache will make the values available as attributes of
+                the instance. The keys of the returned dict will be used to mark
+                the class attributes that trigger a cache update when changed.
             </p>
+            <p>
+                Storklar's very happy, since his page now loads really fast,
+                even when Bobo is in an editing frenzy. He can even add more
+                lists of articles to the front page, since multicache throws
+                them all into one cache request. He was nominated for the
+                Starbastacular Writing of Words Price, and all is well.
+            </p>
+            <a class="anchor" name="docs"></a>
+            <h2>Documentation</h2>
         </article>
     </body>
 </html>
